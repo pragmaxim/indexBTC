@@ -1,6 +1,7 @@
-use futures::future;
-use futures::StreamExt;
+use futures::stream::StreamExt;
+use index_btc::model::SumTx;
 use std::env;
+use tokio::task;
 
 mod merkle;
 mod rpc;
@@ -24,7 +25,7 @@ async fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let mut merkle_sum_tree = merkle::AddressIndexer::new("/tmp/grove.db").unwrap();
+    let merkle_sum_tree = merkle::AddressIndexer::new("/tmp/index_btc.db").unwrap();
     let rpc_client = rpc::RpcClient::new(bitcoin_url, username, password);
 
     let last_height = merkle_sum_tree.get_last_height();
@@ -34,15 +35,44 @@ async fn main() -> Result<(), std::io::Error> {
     println!("Initiating syncing from {} to {}", from_height, end_height);
     let _ = rpc_client
         .fetch_blocks(from_height, end_height)
-        .for_each(|result| match result {
-            Ok((height, transactions)) => {
-                merkle_sum_tree
-                    .update_balances(height, transactions)
-                    .unwrap();
-                future::ready(())
+        .map({
+            let merkle_sum_tree = merkle_sum_tree.clone();
+            move |result| {
+                let mut tree = merkle_sum_tree.clone();
+                task::spawn_blocking(move || match result {
+                    Ok((height, transactions)) => {
+                        tree.update_outputs(&transactions).unwrap();
+                        Ok::<(u64, Vec<SumTx>), String>((height, transactions))
+                    }
+                    Err(e) => Result::Err(e),
+                })
             }
-            Err(e) => {
-                panic!("Error fetching block: {}", e);
+        })
+        .buffered(8)
+        .map({
+            let merkle_sum_tree = merkle_sum_tree.clone();
+            move |result| {
+                let mut tree = merkle_sum_tree.clone();
+                task::spawn_blocking(move || match result {
+                    Ok(Ok((height, transactions))) => {
+                        tree.update_inputs(height, &transactions).unwrap();
+                        Ok::<(u64, Vec<SumTx>), String>((height, transactions))
+                    }
+                    Ok(Err(e)) => Result::Err(e),
+                    Err(e) => Result::Err(e.to_string()),
+                })
+            }
+        })
+        .buffered(8)
+        .for_each(|result| async {
+            match result {
+                Ok(Ok((_, _))) => {}
+                Ok(Err(e)) => {
+                    eprintln!("Error: {}", e);
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                }
             }
         })
         .await;

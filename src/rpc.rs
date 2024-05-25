@@ -62,7 +62,7 @@ impl RpcClient {
                     Err(e) => Err(e.to_string()),
                 }
             })
-            .buffered(32)
+            .buffered(64)
     }
 }
 

@@ -100,7 +100,7 @@ impl FromStr for AddressFlow {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SumTx {
     pub is_coinbase: bool,
     pub txid: String,
@@ -158,7 +158,7 @@ impl From<Transaction> for SumTx {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IndexedTxid {
     pub index: usize,
     pub tx_id: String,
@@ -185,7 +185,7 @@ impl FromStr for IndexedTxid {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Utxo {
     pub index: usize,
     pub address: String,
