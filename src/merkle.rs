@@ -5,9 +5,17 @@ use std::sync::{Arc, RwLock};
 
 pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
 
-// Define a struct to represent the Merkle Sum Tree database
 pub struct AddressIndexer {
     db: Arc<RwLock<TransactionDB>>,
+}
+
+// Derive Clone for AddressIndexer
+impl Clone for AddressIndexer {
+    fn clone(&self) -> AddressIndexer {
+        AddressIndexer {
+            db: Arc::clone(&self.db),
+        }
+    }
 }
 
 impl AddressIndexer {
@@ -15,6 +23,8 @@ impl AddressIndexer {
     pub fn new(db_path: &str) -> Result<Self, rocksdb::Error> {
         let mut opts = Options::default();
         opts.create_if_missing(true);
+        opts.set_max_background_jobs(6);
+        opts.set_enable_pipelined_write(true);
         let txn_db_opts = TransactionDBOptions::default();
         let db = TransactionDB::open(&opts, &txn_db_opts, db_path).unwrap();
         Ok(AddressIndexer {
@@ -51,10 +61,10 @@ impl AddressIndexer {
     // Method to process the inputs of a transaction
     fn process_inputs(
         &self,
-        sum_tx: SumTx,
+        sum_tx: &SumTx,
         db_tx: &rocksdb::Transaction<TransactionDB>,
     ) -> Result<(), rocksdb::Error> {
-        for indexed_txid in sum_tx.ins {
+        for indexed_txid in &sum_tx.ins {
             let tx_cache_key = indexed_txid.to_string();
             let utxo_str = db_tx.get(tx_cache_key)?.unwrap();
 
@@ -90,16 +100,26 @@ impl AddressIndexer {
         Ok(())
     }
 
-    pub fn update_balances(
-        &mut self,
-        height: u64,
-        sum_txs: Vec<SumTx>,
-    ) -> Result<(), rocksdb::Error> {
+    pub fn update_outputs(&mut self, sum_txs: &Vec<SumTx>) -> Result<(), rocksdb::Error> {
         let db_arc = self.db.clone();
         let db = db_arc.write().unwrap();
         let db_tx = db.transaction();
         for sum_tx in sum_txs {
             self.process_outputs(&sum_tx, &db_tx)?;
+        }
+        db_tx.commit()?;
+        Ok(())
+    }
+
+    pub fn update_inputs(
+        &mut self,
+        height: u64,
+        sum_txs: &Vec<SumTx>,
+    ) -> Result<(), rocksdb::Error> {
+        let db_arc = self.db.clone();
+        let db = db_arc.write().unwrap();
+        let db_tx = db.transaction();
+        for sum_tx in sum_txs {
             if !sum_tx.is_coinbase {
                 self.process_inputs(sum_tx, &db_tx)?;
             }
