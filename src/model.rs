@@ -128,34 +128,25 @@ impl From<Transaction> for SumTx {
                 .output
                 .iter()
                 .enumerate()
-                .flat_map(|(out_index, out)| {
-                    let address_opt = if let Ok(address) =
+                .map(|(out_index, out)| {
+                    let address = if let Ok(address) =
                         Address::from_script(out.script_pubkey.as_script(), Network::Bitcoin)
                     {
-                        Some(address.to_string())
+                        address.to_string()
                     } else if let Some(pk) = out.script_pubkey.p2pk_public_key() {
-                        Some(
-                            bitcoin::Address::p2pkh(pk.pubkey_hash(), bitcoin::Network::Bitcoin)
-                                .to_string(),
-                        )
+                        bitcoin::Address::p2pkh(pk.pubkey_hash(), bitcoin::Network::Bitcoin)
+                            .to_string()
                     } else if out.script_pubkey.is_op_return() {
-                        Some(OP_RETURN.to_string())
+                        OP_RETURN.to_string()
                     } else {
-                        println!(
-                            "Invalid script in tx {} of value {}",
-                            tx.compute_txid(),
-                            out.value
-                        );
-                        None
+                        println!("Unknown script type: {:?}", out.script_pubkey);
+                        out.script_pubkey.to_string()
                     };
 
-                    match address_opt {
-                        Some(address) => Some(Utxo {
-                            index: out_index,
-                            address: address.to_string(),
-                            value: out.value.to_sat(),
-                        }),
-                        None => None,
+                    Utxo {
+                        index: out_index,
+                        address: address.to_string(),
+                        value: out.value.to_sat(),
                     }
                 })
                 .collect(),
