@@ -23,10 +23,8 @@ impl AddressIndexer {
     pub fn new(db_path: &str) -> Result<Self, rocksdb::Error> {
         let mut opts = Options::default();
         opts.create_if_missing(true);
-        opts.set_max_background_jobs(6);
-        opts.set_enable_pipelined_write(true);
         let txn_db_opts = TransactionDBOptions::default();
-        let db = TransactionDB::open(&opts, &txn_db_opts, db_path).unwrap();
+        let db = TransactionDB::open(&opts, &txn_db_opts, db_path.to_string()).unwrap();
         Ok(AddressIndexer {
             db: Arc::new(RwLock::new(db)),
         })

@@ -11,8 +11,8 @@ bitcoincore-rpc = "0.19.0"
 rocksdb = "0.22.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1.15"
-futures = "0.3"
-chrono = "0.4"
+futures = "0.3.30"
+chrono = "0.4.38"
 
 [profile.release]
-debug = true
+debug = false
