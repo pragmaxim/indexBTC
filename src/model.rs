@@ -5,6 +5,9 @@ use std::{fmt, str};
 
 use bitcoin::{Address, Network, Transaction};
 
+pub const OP_RETURN: &str = "OP_RETURN";
+pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
+
 #[derive(Debug)]
 pub enum Flow {
     I,
@@ -129,12 +132,14 @@ impl From<Transaction> for SumTx {
                     let address_opt = if let Ok(address) =
                         Address::from_script(out.script_pubkey.as_script(), Network::Bitcoin)
                     {
-                        Some(address)
+                        Some(address.to_string())
                     } else if let Some(pk) = out.script_pubkey.p2pk_public_key() {
-                        Some(bitcoin::Address::p2pkh(
-                            pk.pubkey_hash(),
-                            bitcoin::Network::Bitcoin,
-                        ))
+                        Some(
+                            bitcoin::Address::p2pkh(pk.pubkey_hash(), bitcoin::Network::Bitcoin)
+                                .to_string(),
+                        )
+                    } else if out.script_pubkey.is_op_return() {
+                        Some(OP_RETURN.to_string())
                     } else {
                         println!(
                             "Invalid script in tx {} of value {}",

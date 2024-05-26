@@ -1,9 +1,7 @@
-use index_btc::model::{SumTx, Utxo};
+use index_btc::model::{SumTx, Utxo, LAST_HEIGHT_KEY};
 use rocksdb::{Options, TransactionDB, TransactionDBOptions};
 use std::str;
 use std::sync::{Arc, RwLock};
-
-pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
 
 pub struct AddressIndexer {
     db: Arc<RwLock<TransactionDB>>,
