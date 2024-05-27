@@ -1,7 +1,6 @@
+use core::panic;
 use futures::stream::StreamExt;
-use index_btc::model::SumTx;
 use std::env;
-use tokio::task;
 
 mod logger;
 mod merkle;
@@ -26,7 +25,11 @@ async fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let merkle_sum_tree = merkle::AddressIndexer::new("/tmp/index_btc.db").unwrap();
+    let num_cores = num_cpus::get();
+    log!("Number of CPU cores: {}", num_cores);
+
+    let mut merkle_sum_tree =
+        merkle::AddressIndexer::new(num_cores as i32, "/tmp/index_btc.db").unwrap();
     let rpc_client = rpc::RpcClient::new(bitcoin_url, username, password);
 
     let last_height = merkle_sum_tree.get_last_height();
@@ -35,47 +38,19 @@ async fn main() -> Result<(), std::io::Error> {
 
     log!("Initiating syncing from {} to {}", from_height, end_height);
     let _ = rpc_client
-        .fetch_blocks(from_height, end_height)
-        .map({
-            let merkle_sum_tree = merkle_sum_tree.clone();
-            move |result| {
-                let mut tree = merkle_sum_tree.clone();
-                task::spawn_blocking(move || match result {
-                    Ok((height, transactions)) => {
-                        tree.update_outputs(&transactions).unwrap();
-                        Ok::<(u64, Vec<SumTx>), String>((height, transactions))
-                    }
-                    Err(e) => Result::Err(e),
-                })
+        .fetch_blocks(num_cores, from_height, end_height)
+        .map(|result| match result {
+            Ok((height, sum_txs)) => {
+                merkle_sum_tree
+                    .update_inputs(height, &sum_txs)
+                    .map_err(|e| e.to_string())
+                    .unwrap(); // Handle the Err variant by unwrapping the Result
+            }
+            Err(e) => {
+                panic!("Error: {}", e);
             }
         })
-        .buffered(8)
-        .map({
-            let merkle_sum_tree = merkle_sum_tree.clone();
-            move |result| {
-                let mut tree = merkle_sum_tree.clone();
-                task::spawn_blocking(move || match result {
-                    Ok(Ok((height, transactions))) => {
-                        tree.update_inputs(height, &transactions).unwrap();
-                        Ok::<(u64, Vec<SumTx>), String>((height, transactions))
-                    }
-                    Ok(Err(e)) => Result::Err(e),
-                    Err(e) => Result::Err(e.to_string()),
-                })
-            }
-        })
-        .buffered(8)
-        .for_each(|result| async {
-            match result {
-                Ok(Ok((_, _))) => {}
-                Ok(Err(e)) => {
-                    eprintln!("Error: {}", e);
-                }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                }
-            }
-        })
+        .count()
         .await;
 
     return Ok(());
