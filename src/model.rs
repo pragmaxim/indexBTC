@@ -1,10 +1,10 @@
 use bitcoin::{Address, Network, Transaction};
+use sha2::{Digest, Sha256};
 use std::num::ParseIntError;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use std::{fmt, str};
 
-use crate::log;
 pub const OP_RETURN: &str = "OP_RETURN";
 pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
 
@@ -139,10 +139,10 @@ impl From<Transaction> for SumTx {
                     } else if out.script_pubkey.is_op_return() {
                         OP_RETURN.to_string()
                     } else {
-                        log!("Unknown script type: {:?}", out.script_pubkey);
-                        out.script_pubkey.to_string()
+                        let mut hasher = Sha256::default();
+                        hasher.update(&out.script_pubkey.to_string());
+                        base16::encode_lower(&hasher.finalize())
                     };
-
                     Utxo {
                         index: out_index,
                         address: address.to_string(),
@@ -156,8 +156,8 @@ impl From<Transaction> for SumTx {
 
 #[derive(Debug, Clone)]
 pub struct IndexedTxid {
-    pub index: usize,
     pub tx_id: String,
+    pub index: usize,
 }
 
 impl fmt::Display for IndexedTxid {
@@ -177,7 +177,7 @@ impl FromStr for IndexedTxid {
 
         let index = parts[0].parse::<usize>().map_err(|_| "Invalid value")?;
         let tx_id = parts[1].to_string();
-        Ok(IndexedTxid { index, tx_id })
+        Ok(IndexedTxid { tx_id, index })
     }
 }
 
