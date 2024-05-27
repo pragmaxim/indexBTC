@@ -3,6 +3,7 @@ use index_btc::model::SumTx;
 use std::env;
 use tokio::task;
 
+mod logger;
 mod merkle;
 mod rpc;
 
@@ -32,7 +33,7 @@ async fn main() -> Result<(), std::io::Error> {
     let from_height: u64 = last_height + 1;
     let end_height: u64 = 844566;
 
-    println!("Initiating syncing from {} to {}", from_height, end_height);
+    log!("Initiating syncing from {} to {}", from_height, end_height);
     let _ = rpc_client
         .fetch_blocks(from_height, end_height)
         .map({

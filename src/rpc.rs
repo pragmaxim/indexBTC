@@ -1,3 +1,4 @@
+use crate::log;
 use bitcoin::Transaction;
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 use chrono::DateTime;
@@ -45,7 +46,7 @@ impl RpcClient {
                         let datetime =
                             DateTime::from_timestamp(block.header.time as i64, 0).unwrap();
                         let readable_date = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
-                        println!("Block @ {} : {} : {}", readable_date, height, block_hash);
+                        log!("Block @ {} : {} : {}", readable_date, height, block_hash);
                     }
                     Ok::<(u64, bitcoin::Block), String>((height, block))
                 })

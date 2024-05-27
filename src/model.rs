@@ -1,10 +1,10 @@
+use bitcoin::{Address, Network, Transaction};
 use std::num::ParseIntError;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use std::{fmt, str};
 
-use bitcoin::{Address, Network, Transaction};
-
+use crate::log;
 pub const OP_RETURN: &str = "OP_RETURN";
 pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
 
@@ -139,7 +139,7 @@ impl From<Transaction> for SumTx {
                     } else if out.script_pubkey.is_op_return() {
                         OP_RETURN.to_string()
                     } else {
-                        println!("Unknown script type: {:?}", out.script_pubkey);
+                        log!("Unknown script type: {:?}", out.script_pubkey);
                         out.script_pubkey.to_string()
                     };
 
