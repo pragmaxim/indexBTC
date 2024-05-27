@@ -4,7 +4,7 @@ use bitcoincore_rpc::{Auth, Client, RpcApi};
 use chrono::DateTime;
 use futures::stream::StreamExt;
 use index_btc::model;
-use tokio::task;
+use tokio::{sync::Semaphore, task};
 use tokio_stream::Stream; // Add this line to import the `model` module
 
 use std::sync::Arc;
@@ -23,10 +23,12 @@ impl RpcClient {
 
     pub fn fetch_blocks(
         &self,
+        num_cores: usize,
         start_height: Height,
         end_height: Height,
     ) -> impl Stream<Item = Result<(Height, Vec<model::SumTx>), String>> + '_ {
         let heights = start_height..=end_height;
+        let parallelism = num_cores / 2;
         tokio_stream::iter(heights)
             .map(move |height| {
                 let rpc_client = self.rpc_client.clone();
@@ -51,12 +53,12 @@ impl RpcClient {
                     Ok::<(u64, bitcoin::Block), String>((height, block))
                 })
             })
-            .buffered(32) // Process up to 16 blocks in parallel
+            .buffered(128) // Process up to 16 blocks in parallel
             // process_txs
-            .map(|result| async {
+            .map(move |result| async move {
                 match result {
                     Ok(Ok((height, block))) => {
-                        let sum_txs = process_txs(block.txdata).await;
+                        let sum_txs = process_txs(parallelism, block.txdata).await;
                         Ok((height, sum_txs))
                     }
                     Ok(Err(e)) => Err(e),
@@ -67,17 +69,33 @@ impl RpcClient {
     }
 }
 
-async fn process_txs(txs: Vec<Transaction>) -> Vec<model::SumTx> {
-    let futures: Vec<tokio::task::JoinHandle<model::SumTx>> = txs
-        .into_iter()
-        .map(|tx| tokio::task::spawn_blocking(move || model::SumTx::from(tx)))
+async fn process_txs(parallelism: usize, txs: Vec<Transaction>) -> Vec<model::SumTx> {
+    let batch_size = 100;
+    let sem = Arc::new(Semaphore::new(parallelism)); // Limit to 4 concurrent batches
+
+    let tasks: Vec<_> = txs
+        .chunks(batch_size)
+        .map(|chunk| {
+            let sem = Arc::clone(&sem);
+            let chunk = chunk.to_vec();
+            task::spawn(async move {
+                let _permit = sem.acquire().await.unwrap(); // Acquire a permit asynchronously
+                task::spawn_blocking(move || {
+                    chunk
+                        .into_iter()
+                        .map(|tx| model::SumTx::from(tx))
+                        .collect::<Vec<_>>()
+                })
+                .await
+                .unwrap()
+            })
+        })
         .collect();
 
-    let sum_txs: Vec<model::SumTx> = futures::future::join_all(futures)
-        .await
-        .into_iter()
-        .map(|res| res.expect("Task panicked"))
-        .collect();
+    let results = futures::future::join_all(tasks).await;
 
-    sum_txs
+    results
+        .into_iter()
+        .flat_map(|result| result.expect("Batch processing task panicked"))
+        .collect()
 }
