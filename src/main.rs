@@ -9,22 +9,28 @@ mod rpc;
 use clap::{Arg, ArgAction, Command};
 
 fn cli() -> Command {
-    Command::new("indexBTC").args([
-        Arg::new("db-path")
-            .allow_hyphen_values(true)
-            .require_equals(true)
-            .action(ArgAction::Set)
-            .num_args(1)
-            .default_value("/tmp/index_btc.db")
-            .help("Absolute path to db directory"),
-        Arg::new("btc-url")
-            .action(ArgAction::Set)
-            .require_equals(true)
-            .allow_hyphen_values(true)
-            .num_args(1)
-            .default_value("http://127.0.0.1:8332")
-            .help("Url of local bitcoin-core"),
-    ])
+    Command::new("indexBTC")
+        .about("Bitcoin transactions indexer")
+        .version("1.0")
+        .author("Pragmaxim <pragmaxim@gmail.com>")
+        .args([
+            Arg::new("db-path")
+                .long("db-path")
+                .allow_hyphen_values(true)
+                .require_equals(true)
+                .action(ArgAction::Set)
+                .num_args(1)
+                .default_value("/tmp/index_btc.db")
+                .help("Absolute path to db directory"),
+            Arg::new("btc-url")
+                .long("btc-url")
+                .action(ArgAction::Set)
+                .require_equals(true)
+                .allow_hyphen_values(true)
+                .num_args(1)
+                .default_value("http://127.0.0.1:8332")
+                .help("Url of local bitcoin-core"),
+        ])
 }
 
 #[tokio::main]
