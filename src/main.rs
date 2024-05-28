@@ -6,14 +6,36 @@ mod logger;
 mod merkle;
 mod rpc;
 
+use clap::{Arg, ArgAction, Command};
+
+fn cli() -> Command {
+    Command::new("indexBTC").args([
+        Arg::new("db-path")
+            .allow_hyphen_values(true)
+            .require_equals(true)
+            .action(ArgAction::Set)
+            .num_args(1)
+            .default_value("/tmp/index_btc.db")
+            .help("Absolute path to db directory"),
+        Arg::new("btc-url")
+            .action(ArgAction::Set)
+            .require_equals(true)
+            .allow_hyphen_values(true)
+            .num_args(1)
+            .default_value("http://127.0.0.1:8332")
+            .help("Url of local bitcoin-core"),
+    ])
+}
+
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    // read bitcoin url from arguments
-    let bitcoin_url = env::args()
-        .nth(1)
-        .unwrap_or("http://127.0.0.1:8332".to_string());
+    let matches = cli().get_matches();
 
-    // Create a new MerkleSumTree instance
+    let bitcoin_url = matches.get_one::<String>("btc-url").unwrap();
+    log!("Connecting to bitcoin-core at : {}", bitcoin_url);
+
+    let db_path = matches.get_one::<String>("db-path").unwrap();
+    log!("Using db path : {}", db_path);
 
     let (username, password) = match (
         env::var("BITCOIN_RPC_USERNAME"),
@@ -28,9 +50,8 @@ async fn main() -> Result<(), std::io::Error> {
     let num_cores = num_cpus::get();
     log!("Number of CPU cores: {}", num_cores);
 
-    let mut merkle_sum_tree =
-        merkle::AddressIndexer::new(num_cores as i32, "/tmp/index_btc.db").unwrap();
-    let rpc_client = rpc::RpcClient::new(bitcoin_url, username, password);
+    let mut merkle_sum_tree = merkle::AddressIndexer::new(num_cores as i32, db_path).unwrap();
+    let rpc_client = rpc::RpcClient::new(bitcoin_url.clone(), username, password);
 
     let last_height = merkle_sum_tree.get_last_height();
     let from_height: u64 = last_height + 1;
