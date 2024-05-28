@@ -12,5 +12,9 @@ Indexes whole Bitcoin ledger for real-time address balance access.
 export BITCOIN_RPC_USERNAME=foo
 export BITCOIN_RPC_PASSWORD=bar
 
-cargo run http://127.0.0.1:8332
+Usage: index_btc [OPTIONS]
+
+Options:
+      --db-path=<db-path>  Absolute path to db directory [default: /tmp/index_btc.db]
+      --btc-url=<btc-url>  Url of local bitcoin-core [default: http://127.0.0.1:8332]
 ```
