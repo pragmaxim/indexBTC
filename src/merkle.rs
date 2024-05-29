@@ -1,4 +1,3 @@
-use index_btc::log;
 use index_btc::model::{SumTx, Utxo, LAST_HEIGHT_KEY};
 use rocksdb::{MultiThreaded, Options, TransactionDB, TransactionDBOptions};
 use std::str;
@@ -27,13 +26,13 @@ impl AddressIndexer {
         opts.create_if_missing(true);
         // Increase parallelism: setting the number of background threads
         opts.increase_parallelism(num_cores / 2); // Set this based on your CPU cores
-        opts.set_max_background_jobs(std::cmp::max(num_cores / 6, 2));
+        opts.set_max_background_jobs(std::cmp::max(num_cores / 2, 6));
         // Set other options for performance
-        opts.set_max_file_opening_threads(std::cmp::max(num_cores / 2, 16));
+        opts.set_max_file_opening_threads(std::cmp::max(num_cores / 2, 6));
         opts.set_write_buffer_size(128 * 1024 * 1024); // 64 MB
         opts.set_max_write_buffer_number(8);
-        opts.set_target_file_size_base(64 * 1024 * 1024); // 64 MB
-        opts.set_max_bytes_for_level_base(512);
+        opts.set_target_file_size_base(128 * 1024 * 1024); // 64 MB
+        opts.set_max_bytes_for_level_base(512 * 1024 * 1024);
         opts.set_use_direct_io_for_flush_and_compaction(true);
 
         let cfs =
