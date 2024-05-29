@@ -32,7 +32,6 @@ impl AddressIndexer {
         opts.set_max_file_opening_threads(std::cmp::max(num_cores / 2, 16));
         opts.set_write_buffer_size(128 * 1024 * 1024); // 64 MB
         opts.set_max_write_buffer_number(8);
-        opts.set_unordered_write(true);
         opts.set_target_file_size_base(64 * 1024 * 1024); // 64 MB
         opts.set_max_bytes_for_level_base(512);
         opts.set_use_direct_io_for_flush_and_compaction(true);
