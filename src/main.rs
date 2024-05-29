@@ -81,7 +81,7 @@ async fn main() -> Result<(), std::io::Error> {
                 Err(e) => Err(e.to_string()),
             }
         })
-        .buffered(64)
+        .buffered(128)
         .map(|result| match result {
             Ok((height, sum_txs)) => {
                 merkle_sum_tree
