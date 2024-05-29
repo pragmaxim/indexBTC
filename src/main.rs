@@ -88,12 +88,18 @@ async fn main() -> Result<(), std::io::Error> {
                     .update_balance(height, &sum_txs)
                     .map_err(|e| e.to_string())
                     .unwrap(); // Handle the Err variant by unwrapping the Result
+                (height, sum_txs.len())
             }
             Err(e) => {
                 panic!("Error: {}", e);
             }
         })
-        .count()
+        .fold(0 as u64, |acc, (height, tx_count)| async move {
+            if height % 1000 == 0 {
+                log!("Block @ {} with {} txs, {} total", height, tx_count, acc);
+            }
+            acc + tx_count as u64
+        })
         .await;
 
     log!("Processed {} blocks", blocks_count);
