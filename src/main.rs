@@ -4,6 +4,7 @@ use std::env;
 
 mod logger;
 mod merkle;
+mod process;
 mod rpc;
 
 use clap::{Arg, ArgAction, Command};
@@ -59,17 +60,32 @@ async fn main() -> Result<(), std::io::Error> {
     let mut merkle_sum_tree = merkle::AddressIndexer::new(num_cores as i32, db_path).unwrap();
     let rpc_client = rpc::RpcClient::new(bitcoin_url.clone(), username, password);
 
-    let last_height = merkle_sum_tree.get_last_height();
-    let from_height: u64 = last_height + 1;
+    let from_height: u64 = merkle_sum_tree.get_last_height() + 1;
     let end_height: u64 = 844566;
 
-    log!("Initiating syncing from {} to {}", from_height, end_height);
-    let _ = rpc_client
-        .fetch_blocks(num_cores, from_height, end_height)
+    let parallelism = num_cores / 2;
+    log!(
+        "Initiating syncing from {} to {} with parallelism {}",
+        from_height,
+        end_height,
+        parallelism
+    );
+    let blocks_count = rpc_client
+        .fetch_blocks(from_height, end_height)
+        .map(|result| async move {
+            match result {
+                Ok((height, block)) => {
+                    let sum_txs = process::process_txs(parallelism, block.txdata).await;
+                    Ok((height, sum_txs))
+                }
+                Err(e) => Err(e.to_string()),
+            }
+        })
+        .buffered(64)
         .map(|result| match result {
             Ok((height, sum_txs)) => {
                 merkle_sum_tree
-                    .update_inputs(height, &sum_txs)
+                    .update_balance(height, &sum_txs)
                     .map_err(|e| e.to_string())
                     .unwrap(); // Handle the Err variant by unwrapping the Result
             }
@@ -80,5 +96,6 @@ async fn main() -> Result<(), std::io::Error> {
         .count()
         .await;
 
+    log!("Processed {} blocks", blocks_count);
     return Ok(());
 }

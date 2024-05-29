@@ -26,7 +26,7 @@ impl AddressIndexer {
         opts.create_if_missing(true);
         // Increase parallelism: setting the number of background threads
         opts.increase_parallelism(num_cores / 2); // Set this based on your CPU cores
-        opts.set_max_background_jobs(std::cmp::max(num_cores / 8, 2));
+        opts.set_max_background_jobs(std::cmp::max(num_cores / 6, 2));
         // Set other options for performance
         opts.set_write_buffer_size(64 * 1024 * 1024); // 64 MB
         opts.set_max_write_buffer_number(4);
@@ -109,22 +109,8 @@ impl AddressIndexer {
         db_tx.put(LAST_HEIGHT_KEY, height.to_string().as_bytes())?;
         Ok(())
     }
-    /*
-       pub fn update_outputs(&mut self, sum_txs: &Vec<SumTx>) -> Result<(), rocksdb::Error> {
-           let db_arc = self.db.clone();
-           let db = db_arc.write().unwrap();
-           let db_tx = db.transaction();
-           let address_cf = db.cf_handle(ADDRESS_CF).unwrap();
-           let cache_cf = db.cf_handle(CACHE_CF).unwrap();
-           let mut batch = db_tx.get_writebatch();
-           for sum_tx in sum_txs {
-               self.process_outputs(&sum_tx, &mut batch, &address_cf, &cache_cf);
-           }
-           db_tx.commit()?;
-           Ok(())
-       }
-    */
-    pub fn update_inputs(
+
+    pub fn update_balance(
         &mut self,
         height: u64,
         sum_txs: &Vec<SumTx>,
