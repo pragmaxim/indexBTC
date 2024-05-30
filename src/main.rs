@@ -62,7 +62,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let from_height: u64 = merkle_sum_tree.get_last_height() + 1;
     let end_height: u64 = 844566;
-
+    let start_time = std::time::Instant::now();
     let parallelism = num_cores / 2;
     log!(
         "Initiating syncing from {} to {} with parallelism {}",
@@ -94,11 +94,13 @@ async fn main() -> Result<(), std::io::Error> {
                 panic!("Error: {}", e);
             }
         })
-        .fold(0 as u64, |acc, (height, tx_count)| async move {
+        .fold(0 as u64, |total_tx_count, (height, tx_count)| async move {
             if height % 1000 == 0 {
-                log!("Block @ {} with {} txs, {} total", height, tx_count, acc);
+                let total_time = start_time.elapsed().as_secs();
+                let txs_per_sec = format!("{:.1}", total_tx_count as f64 / total_time as f64);
+                log!("Indexing Speed: {} txs/sec", txs_per_sec);
             }
-            acc + tx_count as u64
+            total_tx_count + tx_count as u64
         })
         .await;
 
