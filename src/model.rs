@@ -8,6 +8,10 @@ use std::{fmt, str};
 pub const OP_RETURN: &str = "OP_RETURN";
 pub const LAST_HEIGHT_KEY: &[u8] = b"last_height";
 
+pub const ADDRESS_CF: &str = "ADDRESS_CF";
+pub const CACHE_CF: &str = "CACHE_CF";
+pub const META_CF: &str = "META_CF";
+
 #[derive(Debug)]
 pub enum Flow {
     I,
