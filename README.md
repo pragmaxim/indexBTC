@@ -1,6 +1,7 @@
 ## indexBTC
 
 Indexes whole Bitcoin ledger for real-time address balance access.
+Uses either [RocksDB](https://rocksdb.org/) or [Sled](https://github.com/spacejam/sled/), which performs better on beefy machines.
 
 ### Run 
 
@@ -15,8 +16,9 @@ Bitcoin transactions indexer
 Usage: index_btc [OPTIONS]
 
 Options:
-      --db-path=<db-path>  Absolute path to db directory [default: /tmp/index_btc.db]
-      --btc-url=<btc-url>  Url of local bitcoin-core [default: http://127.0.0.1:8332]
-  -h, --help               Print help
-  -V, --version            Print version
+      --db-path=<db-path>      Absolute path to db directory [default: /tmp/index_btc]
+      --btc-url=<btc-url>      Url of local bitcoin-core [default: http://127.0.0.1:8332]
+      --db-engine=<db-engine>  rocks-db or sled-db [default: rocks-db]
+  -h, --help                   Print help
+  -V, --version                Print version
 ```
